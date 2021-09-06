@@ -18,11 +18,6 @@ state = deval(sol,time);
 theta = state(1,:);
 thetadot = state(2,:);
 
-% time series plot
-figure
-plot(time,theta,time,thetadot)
-legend('theta vs time', 'thetadot vs time')
-
 % calculate vertices locations over time
 ul_0 = [-p.L/2  p.H/2]'; % upper left
 ur_0 = [ p.L/2  p.H/2]'; % upper right
@@ -31,38 +26,76 @@ lr_0 = [ p.L/2 -p.H/2]'; % lower right
 points_0 = [ul_0 ur_0 lr_0 ll_0];
 
 points = zeros([2 4 length(time)]);
-CB_rotated = zeros([2 length(time)]);
-CG = [0; p.H/2-p.h0];
+CB = zeros([2 length(time)]);
+CG = zeros([2 length(time)]);
+CG_0 = [0; p.H/2-p.h0];
 for i=1:length(time)
     R = [cos(theta(i)) -sin(theta(i));
         sin(theta(i)) cos(theta(i))]; % rotation matrix
-    offset = repmat(CG, 1, 4);
+    CG(:,i) = CG_0 + [0;1] .* (eye(2) - R) * CG_0; % vertical translation to maintain constant submerged area
+    offset = repmat(CG(:,i), 1, 4);
     points(:,:,i) = R * points_0 + offset;
     [CB_x, CB_y] = get_centroid(rad2deg(-theta(i)), p.L, p.H, p.h0);
     CB_pre_rotate = [-CB_x; CB_y] + points_0(:,3);
-    CB_rotated(:,i) = R * CB_pre_rotate + CG;
+    CB(:,i) = R * CB_pre_rotate + CG(:,i);
 end   
-
+%%
+% time series plot
+y = CG(2,:);
+figure
+plot(time,theta,time,thetadot,time,y)
+legend('theta vs time', 'thetadot vs time', 'CG height vs time')
+%%
+figure
+yddot = [0 diff(diff(y)) 0];
+deltaFb = p.m*yddot;
+percentDeltaFb = 100 * deltaFb / (p.m*p.g);
+plot(time,percentDeltaFb)
+%%
 % animation plot
 figure
 hold on
 axis equal
-xlim([-2*p.L 2*p.L])
-ylim([-2*p.H 2*p.H])
-line([-2*p.L 2*p.L],[0 0],'HandleVisibility','off') % water line
-plot(CG(1),CG(2),'ro') % center of gravity
-plot(100,100,'ko'); % just for the legend, so legend doesn't happen in loop
+xlim([-p.L p.L])
+ylim([-p.H 2*p.H])
+line([-p.L p.L],[0 0],'HandleVisibility','off') % water line
+plot(100,100,'r.','MarkerSize',20) % CG (just for legend)
+plot(100,100,'k.','MarkerSize',20); % CB (just for legend)
 legend('Center of Gravity','Center of Buoyancy')
 
 for i=1:length(time)
     square = points(:,:,i);
     square_x = [square(1,:) square(1,1)];
     square_y = [square(2,:) square(2,1)];
-    CBx = CB_rotated(1,i);
-    CBy = CB_rotated(2,i);
-    h1 = plot(CBx, CBy,'ko',square_x,square_y,'b-','HandleVisibility','off');
     
-    %pause(dt)
+    corner_x = square(1,3);
+    corner_y = square(2,3);
+    
+    CB_x = CB(1,i);
+    CB_y = CB(2,i);
+    
+    CG_x = CG(1,i);
+    CG_y = CG(2,i);
+    
+    j=1:i;
+    CB_x_tail = CB(1,j);
+    CB_y_tail = CB(2,j);
+    CG_x_tail = CG(1,j);
+    CG_y_tail = CG(2,j);
+    corner_x_tail = points(1,3,j);
+    corner_y_tail = points(2,3,j);
+    
+    h1 = plot(CB_x, CB_y, 'k.',...
+              CG_x, CG_y, 'r.',...
+              square_x,square_y,'b-',...
+              corner_x,corner_y,'b.',...
+              CB_x_tail,CB_y_tail,'k',...
+              CG_x_tail,CG_y_tail,'r',...
+              corner_x_tail(:),corner_y_tail(:),'b',...
+              'MarkerSize',20,...
+              'HandleVisibility','off');
+          
+    %pause(3*dt)
     movieVector(i) = getframe;
     if i==length(time)
         break
@@ -72,7 +105,7 @@ for i=1:length(time)
 end
 
 
-makeVideo('HydroRectangle3',dt,movieVector);
+makeVideo('HydroRectangle',dt,movieVector);
 
 % dynamics function
 function dxdt = rectDynamics(~,x,p)
