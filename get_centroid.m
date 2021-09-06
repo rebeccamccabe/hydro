@@ -1,5 +1,11 @@
 
 function [C_x, C_y] = get_centroid(theta, L, H, h0)
+    if theta<0
+        negative = true;
+        theta = abs(theta);
+    else
+        negative = false;
+    end
     if h0 < H/2
         shape_case = 1;
         theta_c1 = atand(2 * h0 / L);
@@ -55,6 +61,10 @@ function [C_x, C_y] = get_centroid(theta, L, H, h0)
         end
     else
         error('theta > 90 not supported')
+    end
+    
+    if negative
+        C_x = L - C_x;
     end
 end
 
