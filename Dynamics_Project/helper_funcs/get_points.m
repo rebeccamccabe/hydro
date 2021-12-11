@@ -31,7 +31,7 @@ function [points, CG, CB] = get_points(p,num_pts,theta,r)
         
         if nargin>3 % r dynamics are actually simulated
             offset = [0; -p.h0];
-            CG(:,i) = CG_0' + r(i) .* R(2,:) + offset';
+            CG(:,i) = (R * CG_0)' + r(i) .* R(2,:) + offset';
             points_adjust = [0 0 0 0 0    0;     % x
                              0 0 0 0 r(i) r(i)]; % y
         else % r is calculated from results assuming constant buoyancy
